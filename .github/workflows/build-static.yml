@@ -1,17 +1,14 @@
 name: Manual Static Build
 
-# 允许手动触发工作流
 on:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-    # 赋予工作流向你的 GitHub 仓库写入代码的权限
-    permissions:
-      contents: write
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -25,35 +22,54 @@ jobs:
         run: bun install
 
       - name: Build static site
-        run: bun run build # 编译后会生成默认的 dist 文件夹
+        run: bun run build
 
       # ==========================================
-      # 核心：把打包好的文件复制到 output 文件夹，并提交回仓库
+      # 核心修复：全方位搜寻并强行提取 HTML 和静态资源到 output
       # ==========================================
-      - name: Copy to output and Push to Repo
+      - name: Extract Static Files to Output
         run: |
-          # 1. 确保清空旧的 output 目录，并把新生成的 dist 内容复制进去
           rm -rf output
-          mkdir output
-          cp -r dist/* output/
+          mkdir -p output
           
-          # 2. 配置 Git 机器人信息
+          # 1. 检查各种 TanStack 可能会输出纯静态 HTML 的潜藏路径
+          if [ -d ".output/public" ]; then
+            echo "Found Nitro static output in .output/public"
+            cp -r .output/public/* output/
+          elif [ -d "dist/client" ]; then
+            echo "Found client dist folder"
+            cp -r dist/client/* output/
+            # 如果 client 里没有 index.html，尝试从外层或 .output 寻找
+            if [ -f "dist/index.html" ]; then cp "dist/index.html" output/; fi
+            if [ -f ".output/server/index.html" ]; then cp ".output/server/index.html" output/; fi
+          elif [ -d "dist" ]; then
+            echo "Found standard dist folder"
+            cp -r dist/* output/
+          fi
+          
+          # 2. 如果依然缺少 index.html，生成一个通用的单页应用（SPA）入口，确保 Nginx 和 CF 能正常解析
+          if [ ! -f "output/index.html" ] && [ -f "index.html" ]; then
+            echo "Copying root index.html to output"
+            cp index.html output/
+          fi
+
+      # ==========================================
+      # 强行推送回仓库的 output 文件夹
+      # ==========================================
+      - name: Commit and Push to output
+        run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 3. 强制把 output 文件夹加入暂存区（防止它被 .gitignore 忽略）
+          # 无论如何，强行覆盖本地的 output 文件夹并递交
           git add -f output/
           
-          # 4. 检查是否有文件变更，如果有则提交并推送
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "chore: auto-sync build artifacts to output folder [skip ci]"
-            git push origin main
-          fi
+          # 加上时间戳避免 Git 认为文件没有变化
+          git commit -m "chore: force sync build artifacts $(date +'%Y-%m-%d %H:%M:%S') [skip ci]" || echo "No files to commit"
+          git push origin main
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: static-site-dist
-          path: ./dist
+          path: ./output
