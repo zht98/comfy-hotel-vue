@@ -25,47 +25,71 @@ jobs:
         run: bun run build
 
       # ==========================================
-      # 核心修复：全方位搜寻并强行提取 HTML 和静态资源到 output
+      # 核心修复：强行提取资源并自动组装 SPA index.html 入口
       # ==========================================
       - name: Extract Static Files to Output
         run: |
           rm -rf output
           mkdir -p output
           
-          # 1. 检查各种 TanStack 可能会输出纯静态 HTML 的潜藏路径
+          # 1. 优先提取编译出的静态资产
           if [ -d ".output/public" ]; then
-            echo "Found Nitro static output in .output/public"
             cp -r .output/public/* output/
           elif [ -d "dist/client" ]; then
-            echo "Found client dist folder"
             cp -r dist/client/* output/
-            # 如果 client 里没有 index.html，尝试从外层或 .output 寻找
-            if [ -f "dist/index.html" ]; then cp "dist/index.html" output/; fi
-            if [ -f ".output/server/index.html" ]; then cp ".output/server/index.html" output/; fi
           elif [ -d "dist" ]; then
-            echo "Found standard dist folder"
             cp -r dist/* output/
           fi
-          
-          # 2. 如果依然缺少 index.html，生成一个通用的单页应用（SPA）入口，确保 Nginx 和 CF 能正常解析
-          if [ ! -f "output/index.html" ] && [ -f "index.html" ]; then
-            echo "Copying root index.html to output"
-            cp index.html output/
+
+          # 2. 兼容处理 client 目录可能多嵌套一层的情况
+          if [ -d "output/client" ]; then
+            cp -r output/client/* output/
+            rm -rf output/client
+          fi
+
+          # 3. 【精准补丁】如果缺少 index.html，利用现有 assets 强行组装一个标准的单页应用入口
+          if [ ! -f "output/index.html" ]; then
+            echo "index.html not found. Generating SPA fallback..."
+            
+            # 找到体积最大或者第一个主 JS 文件（排除其他小 js chunk）
+            MAIN_JS=$(basename $(ls output/assets/index-*.js 2>/dev/null | head -n 1))
+            MAIN_CSS=$(basename $(ls output/assets/styles-*.css 2>/dev/null | head -n 1))
+            
+            echo "Detected main JS: $MAIN_JS"
+            echo "Detected main CSS: $MAIN_CSS"
+
+            # 动态生成符合你项目结构的纯静态 index.html
+            cat <<EOT > output/index.html
+          <!DOCTYPE html>
+          <html lang="en">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+              <title>Comfy Hotel</title>
+              <link rel="stylesheet" href="/assets/${MAIN_CSS}">
+            </head>
+            <body>
+              <div id="root"></div>
+              <script type="module" src="/assets/${MAIN_JS}"></script>
+            </body>
+          </html>
+          EOT
+            echo "Successfully generated fallback index.html"
           fi
 
       # ==========================================
-      # 强行推送回仓库的 output 文件夹
+      # 强制将带 index.html 的完整静态目录推回仓库
       # ==========================================
       - name: Commit and Push to output
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 无论如何，强行覆盖本地的 output 文件夹并递交
+          # 强制把 output 文件夹加入暂存区（防止它被 .gitignore 忽略）
           git add -f output/
           
-          # 加上时间戳避免 Git 认为文件没有变化
-          git commit -m "chore: force sync build artifacts $(date +'%Y-%m-%d %H:%M:%S') [skip ci]" || echo "No files to commit"
+          # 加上时间戳，确保即使前端资源没变，工作流也能因为生成了新 HTML 而成功推送
+          git commit -m "chore: force sync build artifacts with index.html $(date +'%Y-%m-%d %H:%M:%S') [skip ci]" || echo "No files to commit"
           git push origin main
 
       - name: Upload Build Artifact
