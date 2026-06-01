@@ -25,14 +25,14 @@ jobs:
         run: bun run build
 
       # ==========================================
-      # 核心修复：强行提取资源，并采用相对路径（./）组装入口
+      # 核心修复：强行提取并自动将全站源码洗成纯相对路径
       # ==========================================
-      - name: Extract Static Files to Output
+      - name: Extract and Make Paths Truly Relative
         run: |
           rm -rf output
           mkdir -p output
           
-          # 1. 优先提取编译出的静态资产
+          # 1. 提取资产
           if [ -d ".output/public" ]; then
             cp -r .output/public/* output/
           elif [ -d "dist/client" ]; then
@@ -41,24 +41,17 @@ jobs:
             cp -r dist/* output/
           fi
 
-          # 2. 兼容处理 client 目录可能多嵌套一层的情况
           if [ -d "output/client" ]; then
             cp -r output/client/* output/
             rm -rf output/client
           fi
 
-          # 3. 【绝对路径改相对路径】利用相对路径组装标准的单页应用入口
+          # 2. 组装相对路径的 index.html 入口
           if [ ! -f "output/index.html" ]; then
-            echo "index.html not found. Generating SPA fallback..."
-            
-            # 找到体积最大或者第一个主 JS 文件
+            echo "Generating adaptive SPA fallback..."
             MAIN_JS=$(basename $(ls output/assets/index-*.js 2>/dev/null | head -n 1))
             MAIN_CSS=$(basename $(ls output/assets/styles-*.css 2>/dev/null | head -n 1))
             
-            echo "Detected main JS: $MAIN_JS"
-            echo "Detected main CSS: $MAIN_CSS"
-
-            # 【关键修改】这里的 href 和 src 改用了 "./assets/" 相对路径
             cat <<EOT > output/index.html
           <!DOCTYPE html>
           <html lang="en">
@@ -74,11 +67,18 @@ jobs:
             </body>
           </html>
           EOT
-            echo "Successfully generated adaptive fallback index.html"
           fi
 
+          # 3. 【降维打击补丁】使用 Linux 的 sed 命令，强行遍历所有的前端 js 代码，
+          # 将内部硬编码试图冲向根目录的 "/assets/" 路径，全部修正为纯相对路径 "assets/"
+          echo "Rewriting absolute asset requests in compilation files..."
+          find output/assets/ -type f -name "*.js" -exec sed -i 's|"/assets/"|"assets/"|g' {} +
+          find output/assets/ -type f -name "*.js" -exec sed -i "s|'/assets/'|'assets/'|g" {} +
+          
+          echo "Paths are now completely environmental-agnostic."
+
       # ==========================================
-      # 强制将带自适应 index.html 的完整静态目录推回仓库
+      # 强制将具有完美自适应能力的目录推回仓库
       # ==========================================
       - name: Commit and Push to output
         run: |
@@ -86,7 +86,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
           git add -f output/
-          git commit -m "chore: use relative assets path in index.html $(date +'%Y-%m-%d %H:%M:%S') [skip ci]" || echo "No files to commit"
+          git commit -m "chore: make entire site fully adaptive with true relative paths $(date +'%Y-%m-%d %H:%M:%S') [skip ci]" || echo "No files to commit"
           git push origin main
 
       - name: Upload Build Artifact
