@@ -7,6 +7,16 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  // 1. 告诉 Vite 基础路径为当前相对路径
+  base: "./", 
+
+  vite: {
+    build: {
+      // 2. 确保资源的相对路径在混淆后依然保持正确的资产引用关系
+      assetsDir: "assets",
+    }
+  },
+
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
