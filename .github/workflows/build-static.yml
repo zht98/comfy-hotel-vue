@@ -1,0 +1,30 @@
+name: Manual Static Build
+
+# 允许手动触发工作流
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build static site
+        # 请确保 package.json 中的 build 命令输出的是纯静态文件（通常在 dist 目录）
+        run: bun run build 
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-site-dist   # 下载时的压缩包文件名
+          path: ./dist             # 打包输出的目录（如果是其他目录如 .output，请对应修改）
