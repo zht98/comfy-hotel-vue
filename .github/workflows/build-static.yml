@@ -7,6 +7,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    
+    # 赋予工作流向你的 GitHub 仓库写入代码的权限
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,11 +25,35 @@ jobs:
         run: bun install
 
       - name: Build static site
-        # 请确保 package.json 中的 build 命令输出的是纯静态文件（通常在 dist 目录）
-        run: bun run build 
+        run: bun run build # 编译后会生成默认的 dist 文件夹
+
+      # ==========================================
+      # 核心：把打包好的文件复制到 output 文件夹，并提交回仓库
+      # ==========================================
+      - name: Copy to output and Push to Repo
+        run: |
+          # 1. 确保清空旧的 output 目录，并把新生成的 dist 内容复制进去
+          rm -rf output
+          mkdir output
+          cp -r dist/* output/
+          
+          # 2. 配置 Git 机器人信息
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 3. 强制把 output 文件夹加入暂存区（防止它被 .gitignore 忽略）
+          git add -f output/
+          
+          # 4. 检查是否有文件变更，如果有则提交并推送
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: auto-sync build artifacts to output folder [skip ci]"
+            git push origin main
+          fi
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: static-site-dist   # 下载时的压缩包文件名
-          path: ./dist             # 打包输出的目录（如果是其他目录如 .output，请对应修改）
+          name: static-site-dist
+          path: ./dist
