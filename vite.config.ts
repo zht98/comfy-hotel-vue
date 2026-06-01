@@ -10,6 +10,10 @@ export default defineConfig({
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
-    server: { entry: "server" },
+    server: { 
+      entry: "server",
+      // 关键修改：强制 Nitro 编译器使用纯静态模式导出，从而生成 index.html
+      preset: "static" 
+    },
   },
 });
