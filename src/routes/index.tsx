@@ -117,7 +117,7 @@ function HotelDetailPage() {
   const [bookedRoom, setBookedRoom] = useState<string>("");
   const [scrolled, setScrolled] = useState(false);
 
-  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 480);
