@@ -8,11 +8,13 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
   tanstackStart: {
-    // 明确重定向服务器入口
+    // 强制更改为单一客户端入口，不需要任何服务端中转
     server: { entry: "server" },
   },
-  // 核心修复：强制指定 Nitro 编译器针对 Cloudflare Pages 构建全套边缘服务端
-  nitro: {
-    preset: "cloudflare-pages"
+  vite: {
+    build: {
+      // 确保单页打包时，将所有动态路由都合并到主入口，防止云端找不到文件
+      ssr: false,
+    }
   }
 });
