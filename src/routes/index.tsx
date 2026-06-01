@@ -397,6 +397,46 @@ function HotelDetailPage() {
         </section>
       </main>
 
+      {/* Footer */}
+      <footer className="border-t border-border bg-muted/30">
+        <div className="mx-auto max-w-7xl px-4 py-10">
+          <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-4">
+            <div>
+              <h4 className="mb-3 text-sm font-semibold text-foreground">关于艺龙</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><a href="#" className="transition hover:text-primary">关于我们</a></li>
+                <li><a href="#" className="transition hover:text-primary">加入我们</a></li>
+                <li><a href="#" className="transition hover:text-primary">联系方式</a></li>
+                <li><a href="#" className="transition hover:text-primary">隐私政策</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="mb-3 text-sm font-semibold text-foreground">帮助中心</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><a href="#" className="transition hover:text-primary">预订流程</a></li>
+                <li><a href="#" className="transition hover:text-primary">退改政策</a></li>
+                <li><a href="#" className="transition hover:text-primary">发票说明</a></li>
+                <li><a href="#" className="transition hover:text-primary">常见问题</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="mb-3 text-sm font-semibold text-foreground">合作伙伴</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><a href="#" className="transition hover:text-primary">酒店加盟</a></li>
+                <li><a href="#" className="transition hover:text-primary">广告服务</a></li>
+                <li><a href="#" className="transition hover:text-primary">企业差旅</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="mb-3 text-sm font-semibold text-foreground">客户服务</h4>
+              <p className="text-sm text-muted-foreground">7×24 小时客服热线</p>
+              <p className="mt-1 text-lg font-bold text-primary">400-810-5666</p>
+              <p className="mt-3 text-xs text-muted-foreground">© 2026 eLong Inc. 保留所有权利。</p>
+            </div>
+          </div>
+        </div>
+      </footer>
+
       {/* Lightbox */}
       {lightbox !== null && (
         <Lightbox index={lightbox} onClose={() => setLightbox(null)} onIndex={setLightbox} />
